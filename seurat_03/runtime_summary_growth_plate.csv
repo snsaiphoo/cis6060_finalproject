@@ -1,16 +1,16 @@
 "Step","Time_sec"
-"Load Data",18.1600000000001
-"Create Object",2.04999999999995
-"Mitochondrial %",0.369999999999891
-"QC Filtering",0.700000000000045
-"Normalization",1.70000000000005
-"Variable Features",3.8599999999999
-"Scaling",0.740000000000009
-"PCA",7.75
+"Load Data",18.1900000000005
+"Create Object",2.02999999999975
+"Mitochondrial %",0.390000000000327
+"QC Filtering",0.590000000000146
+"Normalization",1.89999999999964
+"Variable Features",3.90999999999985
+"Scaling",0.860000000000582
+"PCA",7.91000000000076
 "Embeddings",0
 "Variance",0
 "Loadings",0
-"Neighbors",3.06000000000017
-"Clustering",1.26999999999998
-"UMAP",30.0900000000001
-"Marker Detection",1669.59
+"Neighbors",2.97000000000025
+"Clustering",1.30000000000018
+"UMAP",31.0699999999997
+"Marker Detection",1708.08
