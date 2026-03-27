@@ -11,7 +11,7 @@ set.seed(42)
 
 # Load Data
 time_load <- system.time({
-  data <- Read10X("GSM4319249_injured//")
+  data <- Read10X("GSM4319249_injured/")
 })
 
 # Create Seurat Object

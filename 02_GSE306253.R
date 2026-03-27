@@ -11,7 +11,7 @@ set.seed(42)
 
 # Load Data
 time_load <- system.time({
-  data <- Read10X("GSM4319249_injured//")
+  data <- Read10X("GSM4319249_injured/")
 })
 
 # Create Seurat Object
@@ -115,7 +115,7 @@ DimPlot(obj, reduction = "pca")
 time_embed <- system.time({
   pca_embeddings <- Embeddings(obj, "pca")[, 1:2]
 })
-write.csv(pca_embeddings, "seurat_01/seurat_pca_embeddings_01.csv")
+write.csv(pca_embeddings, "seurat_02/seurat_pca_embeddings_02.csv")
 
 # Variance explained
 time_var <- system.time({
@@ -128,7 +128,7 @@ variance_df <- data.frame(
   Variance = var_explained
 )
 
-write.csv(variance_df, "seurat_01/seurat_variance_explained_01.csv")
+write.csv(variance_df, "seurat_02/seurat_variance_explained_02.csv")
 
 # Loadings
 time_loadings <- system.time({
@@ -141,8 +141,8 @@ pc2_vals <- sort(abs(loadings[,2]), decreasing = TRUE)[1:10]
 pc1_df <- data.frame(Gene = names(pc1_vals), Loading = pc1_vals)
 pc2_df <- data.frame(Gene = names(pc2_vals), Loading = pc2_vals)
 
-write.csv(pc1_df, "seurat_01/seurat_pc1_genes_01.csv", row.names = FALSE)
-write.csv(pc2_df, "seurat_01/seurat_pc2_genes_01.csv", row.names = FALSE)
+write.csv(pc1_df, "seurat_02/seurat_pc1_genes_02.csv", row.names = FALSE)
+write.csv(pc2_df, "seurat_02/seurat_pc2_genes_02.csv", row.names = FALSE)
 
 # Clustering 
 time_neighbors <- system.time({
@@ -176,7 +176,7 @@ top_markers <- markers %>%
   group_by(cluster) %>%
   slice_max(order_by = avg_log2FC, n = 10)
 
-write.csv(top_markers, "seurat_01/seurat_top_markers_01.csv", row.names = FALSE)
+write.csv(top_markers, "seurat_02/seurat_top_markers_02.csv", row.names = FALSE)
 
 top_markers %>%
   arrange(cluster, desc(avg_log2FC)) %>%
@@ -190,7 +190,7 @@ cluster_summary <- markers %>%
   summarise(genes = paste(gene, collapse = ", "))
 
 print(cluster_summary)
-write.csv(cluster_summary, "seurat_01/seurat_cluster_summary_01.csv", row.names = FALSE)
+write.csv(cluster_summary, "seurat_02/seurat_cluster_summary_02.csv", row.names = FALSE)
 
 new_labels <- c(
   "Resident Macrophages",                 # 0
@@ -254,4 +254,4 @@ runtime_summary <- data.frame(
 
 print(runtime_summary)
 
-write.csv(runtime_summary, "seurat_01/runtime_summary_growth_plate.csv", row.names = FALSE)
+write.csv(runtime_summary, "seurat_02/runtime_summary_growth_plate.csv", row.names = FALSE)
