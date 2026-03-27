@@ -3,7 +3,7 @@ library(Seurat)
 library(patchwork)
 library(ggplot2)
 
-# 15769 features across 4425 samples within 1 assay 
+# 22240 features across 6045 samples within 1 assay
 
 # Set seed for reproducibility
 set.seed(42)
@@ -11,14 +11,14 @@ set.seed(42)
 
 # Load Data
 time_load <- system.time({
-  data <- Read10X("GSM4319249_injured/")
+  data <- Read10X("GSM9195629_rep1/")
 })
 
 # Create Seurat Object
 time_create <- system.time({
   obj <- CreateSeuratObject(
     counts = data,
-    project = "tibialis_injured ",
+    project = "pcl_injury",
     min.cells = 3,
     min.features = 200
   )
@@ -46,14 +46,17 @@ FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "percent.mt")
 FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 
 # QC Filtering
-# In order to remove low-quality tails seen in Vln plots. Remove potential doublets
-# found in cells above 7000, the mitochondrial pt, most good cells are <5%, so 10% is safe
+# QC Filtering:
+# Remove low-quality cells (nFeature_RNA < 1000)
+# Remove potential doublets (nFeature_RNA > 7000, nCount_RNA > 50000)
+# Remove high mitochondrial cells (percent.mt > 10)
 time_qc <- system.time({
   obj <- subset(
     obj,
     subset =
-      nFeature_RNA > 800 &
-      nFeature_RNA < 6000 &
+      nFeature_RNA > 1000 &
+      nFeature_RNA < 7000 &
+      nCount_RNA < 50000 &
       percent.mt < 10
   )
 })
@@ -160,7 +163,6 @@ time_umap <- system.time({
 
 DimPlot(obj, reduction = "umap", label = TRUE)
 VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), group.by = "seurat_clusters")
-obj <- subset(obj, idents = 5, invert = TRUE)
 
 # Marker Gene Analysis
 time_markers <- system.time({
@@ -193,19 +195,26 @@ print(cluster_summary)
 write.csv(cluster_summary, "seurat_02/seurat_cluster_summary_02.csv", row.names = FALSE)
 
 new_labels <- c(
-  "Resident Macrophages",                 # 0
-  "Activated Myeloid Cells",              # 1
-  "Inflammatory Monocytes",               # 2
-  "Inflammatory Neutrophils",             # 3
-  "Leukocytes (Circulating)",             # 4
-  "NK / Cytotoxic T Cells",               # 6
-  "Endothelial Cells",                    # 7
-  "Inflammatory Endothelial / Myeloid",   # 8
-  "Fibroblasts",                          # 9
-  "Pericytes / Smooth Muscle Cells",      # 10
-  "Mesenchymal Stromal Cells",            # 11
-  "Schwann Cells",                        # 12
-  "M2-like Macrophages (Repair)"          # 13
+  "Fibroblasts (Remodeling)",          # 0
+  "Inflammatory Myeloid Cells",        # 1
+  "Macrophages (MMP12+)",              # 2
+  "Activated Fibroblasts",             # 3
+  "Mesenchymal Stromal Cells",         # 4
+  "Epithelial-like Cells",             # 5
+  "Inflammatory Monocytes",            # 6
+  "Basement Membrane Fibroblasts",     # 7
+  "Stress-Response Cells",             # 8
+  "Neutrophils",                       # 9
+  "Activated Endothelial Cells",       # 10
+  "Activated Neutrophils",             # 11
+  "Dendritic Cells",                   # 12
+  "T Cells",                           # 13
+  "Pericytes / Smooth Muscle Cells",   # 14
+  "Fibroblasts (ECM)",                 # 15
+  "Lymphatic Endothelial Cells",       # 16
+  "Schwann / Neural Cells",            # 17
+  "Skeletal Muscle Cells",             # 18
+  "Endothelial Cells (Apln+)"          # 19
 )
 
 names(new_labels) <- levels(obj)
@@ -254,4 +263,4 @@ runtime_summary <- data.frame(
 
 print(runtime_summary)
 
-write.csv(runtime_summary, "seurat_02/runtime_summary_growth_plate.csv", row.names = FALSE)
+write.csv(runtime_summary, "seurat_02/runtime_summary_pcl.csv", row.names = FALSE)
