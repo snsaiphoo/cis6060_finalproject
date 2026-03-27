@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.h5
+.RDataTmp
+PCAcomp.Rproj
+*.h5ad
+GS*/
