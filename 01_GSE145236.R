@@ -42,7 +42,6 @@ time_mt <- system.time({
 
 VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 
-# The feature scatter plots show a strong positive correlation (r ≈ 0.91) between nCount_RNA and nFeature_RNA, indicating consistent library complexity across cells. In contrast, percent.mt shows little correlation with sequencing depth (r ≈ −0.01). A subset of cells with low counts and high mitochondrial expression suggests the presence of low-quality or stressed cells, supporting the need for QC filtering.
 FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "percent.mt")
 FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 
@@ -73,10 +72,6 @@ time_hvg <- system.time({
     nfeatures = 2000
   )
 })
-
-# VariableFeatures(obj) <- VariableFeatures(obj)[
-#   !grepl("^Hb|^Rpl|^Rps", VariableFeatures(obj))
-# ]
 
 # Recalculate top features AFTER filtering
 top10 <- head(VariableFeatures(obj), 10)
@@ -259,4 +254,4 @@ runtime_summary <- data.frame(
 
 print(runtime_summary)
 
-write.csv(runtime_summary, "seurat_01/runtime_summary_growth_plate.csv", row.names = FALSE)
+write.csv(runtime_summary, "seurat_01/runtime_summary_tibialis.csv", row.names = FALSE)
