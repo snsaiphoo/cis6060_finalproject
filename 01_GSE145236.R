@@ -2,141 +2,261 @@ library(dplyr)
 library(Seurat)
 library(patchwork)
 library(ggplot2)
-# https://satijalab.org/seurat/articles/pbmc3k_tutorial
+
+# 15769 features across 4425 samples within 1 assay 
+
+# Set seed for reproducibility
+set.seed(42)
 
 
-# Dataset 1: 4,425 cells × 15,769 genes
+# Load Data
+time_load <- system.time({
+  data <- Read10X("GSM4319249_injured//")
+})
 
-# the raw count matrix
-# rows --> genes
-# columns --> cells
-# values --> number of transcripts detected
-injured.data <- Read10X("GSM4319249_injured")
+# Create Seurat Object
+time_create <- system.time({
+  obj <- CreateSeuratObject(
+    counts = data,
+    project = "tibialis_injured ",
+    min.cells = 3,
+    min.features = 200
+  )
+})
 
-# creates a Seurat object
-# the raw expression matrix
-# metadata about cells
-# normalization results
-# PCA results
-# clustering results 
-# min.cells = 3, this removes genes that appear in fewer than 3 cells, these genes are usually noise or sequencing artifacts 
-# min.features = 200, this removes cells that express fewer than 200 genes
-# to remove extremely rare genes
-# to remove low-quality cells
-injured <- CreateSeuratObject(counts = injured.data, project="injured", min.cells = 3, min.features = 200)
+DefaultAssay(obj) <- "RNA"
+options(Seurat.object.assay.version = "v5")
+obj <- UpdateSeuratObject(obj)
+print(obj)
 
-injured
+# Mitochondrial Percentage
+time_mt <- system.time({
+  counts <- GetAssayData(obj, layer = "counts")
+  mt_genes <- grep("^mt-", rownames(counts), value = TRUE)
+  
+  percent.mt <- colSums(counts[mt_genes, ]) / colSums(counts) * 100
+  obj[["percent.mt"]] <- percent.mt
+})
 
-# why mitochondrial percentage matters
-# healthy cells mostly contain nuclear RNA transcripts
-# when a cell is damaged or dying, the cytoplasm leaks and mitochondrial RNA becomes overrepresented 
-# so cells with very high mitochondrial percentages are usually dying cells, stressed cells, broken cells, debris captured in droplets 
-injured[["percent.mt"]] <- PercentageFeatureSet(injured, pattern = "^mt-")
+# QC Plots
+
+VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# The feature scatter plots show a strong positive correlation (r ≈ 0.91) between nCount_RNA and nFeature_RNA, indicating consistent library complexity across cells. In contrast, percent.mt shows little correlation with sequencing depth (r ≈ −0.01). A subset of cells with low counts and high mitochondrial expression suggests the presence of low-quality or stressed cells, supporting the need for QC filtering.
+FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "percent.mt")
+FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+
+# QC Filtering
+# In order to remove low-quality tails seen in Vln plots. Remove potential doublets
+# found in cells above 7000, the mitochondrial pt, most good cells are <5%, so 10% is safe
+time_qc <- system.time({
+  obj <- subset(
+    obj,
+    subset =
+      nFeature_RNA > 800 &
+      nFeature_RNA < 6000 &
+      percent.mt < 10
+  )
+})
+
+# Normalization
+time_norm <- system.time({
+  obj <- NormalizeData(obj)
+})
 
 
-# Visualize QC metrics as a violin plot
-injured_qc <- VlnPlot(injured,
-                      features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
-                      ncol = 3) +  plot_annotation(
-                        title = "Quality Control Metrics for Injured Sample",
-                        theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-                      )
+# Variable Features
+time_hvg <- system.time({
+  obj <- FindVariableFeatures(
+    obj,
+    selection.method = "vst",
+    nfeatures = 2000
+  )
+})
 
+# VariableFeatures(obj) <- VariableFeatures(obj)[
+#   !grepl("^Hb|^Rpl|^Rps", VariableFeatures(obj))
+# ]
 
-#ggsave("figures/injured_qc.png", plot = injured_qc, width = 8, height = 6, dpi = 300)
+# Recalculate top features AFTER filtering
+top10 <- head(VariableFeatures(obj), 10)
 
+# Plot
+plot <- VariableFeaturePlot(obj)
 
-# FeatureScatter is typically used to visualize feature-feature relationships, but can be used
-# for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
-
-plot1 <- FeatureScatter(injured, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(injured, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-scatter_injured <- plot1 + plot2 + plot_annotation(
-  title = "Scatterplots of the Injured Sample",
-  theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+LabelPoints(
+  plot = plot,
+  points = top10,
+  repel = TRUE
 )
 
-#ggsave("figures/injured_scatter.png", plot = scatter_injured, width = 8, height = 6, dpi = 300)
+# Scaling
+time_scale <- system.time({
+  obj <- ScaleData(obj)
+})
 
+# PCA (IRLBA)
+time_pca <- system.time({
+  obj <- RunPCA(
+    obj,
+    features = VariableFeatures(obj),
+    approx = TRUE,
+    seed.use = 42
+  )
+})
 
-injured <- subset(
-  injured,
-  subset = nFeature_RNA > 500 &
-    nFeature_RNA < 6000 &
-    percent.mt < 10 # more common in muscle tissue, due to more mitochondria
+# PCA Visualization
+ElbowPlot(obj, ndims = 10)
+
+print(obj[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(obj, dims = 1:2, reduction = "pca")
+
+DimPlot(obj, reduction = "pca")
+
+# PCA Evaluation Metrics
+
+# Embeddings
+time_embed <- system.time({
+  pca_embeddings <- Embeddings(obj, "pca")[, 1:2]
+})
+write.csv(pca_embeddings, "seurat_01/seurat_pca_embeddings_01.csv")
+
+# Variance explained
+time_var <- system.time({
+  stdev <- obj[["pca"]]@stdev
+  var_explained <- (stdev^2) / sum(stdev^2)
+})
+
+variance_df <- data.frame(
+  PC = paste0("PC", 1:length(var_explained)),
+  Variance = var_explained
 )
 
+write.csv(variance_df, "seurat_01/seurat_variance_explained_01.csv")
 
-VlnPlot(injured, features = c("nFeature_RNA","nCount_RNA","percent.mt"))
+# Loadings
+time_loadings <- system.time({
+  loadings <- Loadings(obj, "pca")
+})
 
-plot1 <- FeatureScatter(injured, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(injured, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot1 + plot2
+pc1_vals <- sort(abs(loadings[,1]), decreasing = TRUE)[1:10]
+pc2_vals <- sort(abs(loadings[,2]), decreasing = TRUE)[1:10]
 
+pc1_df <- data.frame(Gene = names(pc1_vals), Loading = pc1_vals)
+pc2_df <- data.frame(Gene = names(pc2_vals), Loading = pc2_vals)
 
-# Normalizing the data 
-injured <- NormalizeData(injured)
+write.csv(pc1_df, "seurat_01/seurat_pc1_genes_01.csv", row.names = FALSE)
+write.csv(pc2_df, "seurat_01/seurat_pc2_genes_01.csv", row.names = FALSE)
 
+# Clustering 
+time_neighbors <- system.time({
+  obj <- FindNeighbors(obj, dims = 1:10)
+})
 
-# Identification of High Variable Features (Feature Selection)
-# vst is the variance stabilizing transformation
-# this helps account for genes with higher average expression, as these tend to naturally have higher variance 
-# it finds genes whose variability is higher than expected given their average expression level 
-# those genes are considered highly variable features
-set.seed(123)
-injured <- FindVariableFeatures(injured, selection.method = "vst", nfeatures = 2000)
+time_clusters <- system.time({
+  obj <- FindClusters(obj)
+})
 
-# Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(injured), 10)
+# UMAP
+time_umap <- system.time({
+  obj <- RunUMAP(obj, dims = 1:10)
+})
 
-# plot variable features with and without labels
-plot1 <- VariableFeaturePlot(injured)
-plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-hvg_injured <- plot2 + plot_annotation(
-  title = "HVGs of the Injured Sample",
-  theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+DimPlot(obj, reduction = "umap", label = TRUE)
+VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), group.by = "seurat_clusters")
+obj <- subset(obj, idents = 5, invert = TRUE)
+
+# Marker Gene Analysis
+time_markers <- system.time({
+  markers <- FindAllMarkers(
+    obj,
+    only.pos = TRUE,
+    min.pct = 0.25,
+    logfc.threshold = 0.25
+  )
+})
+
+top_markers <- markers %>%
+  group_by(cluster) %>%
+  slice_max(order_by = avg_log2FC, n = 10)
+
+write.csv(top_markers, "seurat_01/seurat_top_markers_01.csv", row.names = FALSE)
+
+top_markers %>%
+  arrange(cluster, desc(avg_log2FC)) %>%
+  View()
+
+library(dplyr)
+
+cluster_summary <- markers %>%
+  group_by(cluster) %>%
+  slice_max(order_by = avg_log2FC, n = 5) %>%
+  summarise(genes = paste(gene, collapse = ", "))
+
+print(cluster_summary)
+write.csv(cluster_summary, "seurat_01/seurat_cluster_summary_01.csv", row.names = FALSE)
+
+new_labels <- c(
+  "Resident Macrophages",                 # 0
+  "Activated Myeloid Cells",              # 1
+  "Inflammatory Monocytes",               # 2
+  "Inflammatory Neutrophils",             # 3
+  "Leukocytes (Circulating)",             # 4
+  "NK / Cytotoxic T Cells",               # 6
+  "Endothelial Cells",                    # 7
+  "Inflammatory Endothelial / Myeloid",   # 8
+  "Fibroblasts",                          # 9
+  "Pericytes / Smooth Muscle Cells",      # 10
+  "Mesenchymal Stromal Cells",            # 11
+  "Schwann Cells",                        # 12
+  "M2-like Macrophages (Repair)"          # 13
 )
 
-ggsave("figures/injured_hvg.png", plot = hvg_injured, width = 10, height = 6, dpi = 300)
+names(new_labels) <- levels(obj)
+obj <- RenameIdents(obj, new_labels)
 
+DimPlot(obj, reduction = "umap", label = TRUE, repel = TRUE) + NoLegend()
+DimPlot(obj, reduction = "pca", repel = TRUE) 
 
-# Scaling the Data
-all.genes <- rownames(injured)
-injured <- ScaleData(injured, features = all.genes)
-
-# Run PCA
-injured <- RunPCA(injured, features = VariableFeatures(object = injured))
-
-# Screeplot of both Injured and Uninjured Samples
-scree_injured <- ElbowPlot(injured, ndims = 10, reduction = "pca") +
-  plot_annotation(
-    title = "Screeplot of Injured Sample",
-    theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
-  ) + theme_bw() + scale_x_continuous(breaks = 1:10)
-
-#ggsave("figures/screeplot_injured.png", plot = scree_injured, width = 10, height = 6, dpi = 300)
-
-
-# The results of the Screeplot show that the most variation has been 
-# captured in PC1-PC5 for both injured and uninjured 
-
-# Examine and visualize PCA results a few different ways
-print(injured[["pca"]], dims = 1:5, nfeatures = 5)
-
-# Gene loadings of injured sample
-VizDimLoadings(injured, dims = 1:2, reduction = "pca") + plot_annotation(
-  title = "Gene Loadings of PC1 & PC2 - Injured Sample",
-  theme = theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+# Runtime Summary
+runtime_summary <- data.frame(
+  Step = c(
+    "Load Data",
+    "Create Object",
+    "Mitochondrial %",
+    "QC Filtering",
+    "Normalization",
+    "Variable Features",
+    "Scaling",
+    "PCA",
+    "Embeddings",
+    "Variance",
+    "Loadings",
+    "Neighbors",
+    "Clustering",
+    "UMAP",
+    "Marker Detection"
+  ),
+  Time_sec = c(
+    time_load["elapsed"],
+    time_create["elapsed"],
+    time_mt["elapsed"],
+    time_qc["elapsed"],
+    time_norm["elapsed"],
+    time_hvg["elapsed"],
+    time_scale["elapsed"],
+    time_pca["elapsed"],
+    time_embed["elapsed"],
+    time_var["elapsed"],
+    time_loadings["elapsed"],
+    time_neighbors["elapsed"],
+    time_clusters["elapsed"],
+    time_umap["elapsed"],
+    time_markers["elapsed"]
+  )
 )
 
+print(runtime_summary)
 
-DimPlot(injured, reduction = "pca")
-
-DimHeatmap(injured, dims = 1, cells = 500, balanced = TRUE) 
-
-hm_injured <- DimHeatmap(injured, dims = 1:9, cells = 500, balanced = TRUE)
-
-ggsave("figures/heatmap_injured.png", plot = hm_injured, width = 12, height = 12, dpi = 300)
-
-injured <- RunUMAP(injured, dims = 1:10)
-DimPlot(injured, reduction = "umap", label = TRUE)
+write.csv(runtime_summary, "seurat_01/runtime_summary_growth_plate.csv", row.names = FALSE)
