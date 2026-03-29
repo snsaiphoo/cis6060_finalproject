@@ -76,6 +76,9 @@ time_hvg <- system.time({
   )
 })
 
+seurat_hvg <- VariableFeatures(obj)
+write.csv(seurat_hvg, "seurat_02/seurat_hvg_02.csv", row.names = FALSE)
+
 # Recalculate top features AFTER filtering
 top10 <- head(VariableFeatures(obj), 10)
 
