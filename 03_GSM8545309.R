@@ -78,6 +78,11 @@ VariableFeatures(obj) <- VariableFeatures(obj)[
   !grepl("^Hb|^Rpl|^Rps", VariableFeatures(obj))
 ]
 
+length(VariableFeatures(obj))
+
+seurat_hvg <- VariableFeatures(obj)
+write.csv(seurat_hvg, "seurat_03/seurat_hvg_03.csv", row.names = FALSE)
+
 # Recalculate top features AFTER filtering
 top10 <- head(VariableFeatures(obj), 10)
 
