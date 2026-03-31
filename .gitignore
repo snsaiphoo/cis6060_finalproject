@@ -7,4 +7,5 @@
 PCAcomp.Rproj
 *.h5ad
 GS*/
-scanpy_01_NIU
+scanpy_01_NIU/
+scanpy_02_NIU/
