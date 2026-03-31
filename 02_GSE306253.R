@@ -173,66 +173,6 @@ time_umap <- system.time({
 })
 
 DimPlot(obj, reduction = "umap", label = TRUE)
-VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), group.by = "seurat_clusters")
-
-# Marker Gene Analysis
-time_markers <- system.time({
-  markers <- FindAllMarkers(
-    obj,
-    only.pos = TRUE,
-    min.pct = 0.25,
-    logfc.threshold = 0.25
-  )
-})
-
-top_markers <- markers %>%
-  group_by(cluster) %>%
-  slice_max(order_by = avg_log2FC, n = 10)
-
-write.csv(top_markers, "seurat_02/seurat_top_markers_02.csv", row.names = FALSE)
-
-top_markers %>%
-  arrange(cluster, desc(avg_log2FC)) %>%
-  View()
-
-library(dplyr)
-
-cluster_summary <- markers %>%
-  group_by(cluster) %>%
-  slice_max(order_by = avg_log2FC, n = 5) %>%
-  summarise(genes = paste(gene, collapse = ", "))
-
-print(cluster_summary)
-write.csv(cluster_summary, "seurat_02/seurat_cluster_summary_02.csv", row.names = FALSE)
-
-new_labels <- c(
-  "Fibroblasts (Remodeling)",          # 0
-  "Inflammatory Myeloid Cells",        # 1
-  "Macrophages (MMP12+)",              # 2
-  "Activated Fibroblasts",             # 3
-  "Mesenchymal Stromal Cells",         # 4
-  "Epithelial-like Cells",             # 5
-  "Inflammatory Monocytes",            # 6
-  "Basement Membrane Fibroblasts",     # 7
-  "Stress-Response Cells",             # 8
-  "Neutrophils",                       # 9
-  "Activated Endothelial Cells",       # 10
-  "Activated Neutrophils",             # 11
-  "Dendritic Cells",                   # 12
-  "T Cells",                           # 13
-  "Pericytes / Smooth Muscle Cells",   # 14
-  "Fibroblasts (ECM)",                 # 15
-  "Lymphatic Endothelial Cells",       # 16
-  "Schwann / Neural Cells",            # 17
-  "Skeletal Muscle Cells",             # 18
-  "Endothelial Cells (Apln+)"          # 19
-)
-
-names(new_labels) <- levels(obj)
-obj <- RenameIdents(obj, new_labels)
-
-DimPlot(obj, reduction = "umap", label = TRUE, repel = TRUE) + NoLegend()
-DimPlot(obj, reduction = "pca", repel = TRUE) 
 
 # Runtime Summary
 runtime_summary <- data.frame(
@@ -250,8 +190,7 @@ runtime_summary <- data.frame(
     "Loadings",
     "Neighbors",
     "Clustering",
-    "UMAP",
-    "Marker Detection"
+    "UMAP"
   ),
   Time_sec = c(
     time_load["elapsed"],
@@ -267,8 +206,7 @@ runtime_summary <- data.frame(
     time_loadings["elapsed"],
     time_neighbors["elapsed"],
     time_clusters["elapsed"],
-    time_umap["elapsed"],
-    time_markers["elapsed"]
+    time_umap["elapsed"]
   )
 )
 

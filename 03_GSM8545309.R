@@ -178,61 +178,6 @@ time_umap <- system.time({
 })
 
 DimPlot(obj, reduction = "umap", label = TRUE)
-VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), group.by = "seurat_clusters")
-obj <- subset(obj, idents = c(13, 14), invert = TRUE)
-
-# Marker Gene Analysis
-time_markers <- system.time({
-  markers <- FindAllMarkers(
-    obj,
-    only.pos = TRUE,
-    min.pct = 0.25,
-    logfc.threshold = 0.25
-  )
-})
-
-top_markers <- markers %>%
-  group_by(cluster) %>%
-  slice_max(order_by = avg_log2FC, n = 10)
-
-write.csv(top_markers, "seurat_03/seurat_top_markers_03.csv", row.names = FALSE)
-
-top_markers %>%
-  arrange(cluster, desc(avg_log2FC)) %>%
-  View()
-
-library(dplyr)
-
-cluster_summary <- markers %>%
-  group_by(cluster) %>%
-  slice_max(order_by = avg_log2FC, n = 5) %>%
-  summarise(genes = paste(gene, collapse = ", "))
-
-print(cluster_summary)
-write.csv(cluster_summary, "seurat_03/seurat_cluster_summary_03.csv", row.names = FALSE)
-
-new_labels <- c(
-  "Inflammatory Neutrophils",  # 0
-  "Activated Myeloid",         # 1
-  "Neutrophil-like",           # 2
-  "Epithelial/Barrier-like",   # 3
-  "Mixed/Undefined",           # 4
-  "Macrophages",               # 5
-  "Proliferating Cells",       # 6
-  "Innate Myeloid",            # 7
-  "B Cells",                   # 8
-  "NK/T Cells",                # 9
-  "Dendritic Cells (pDC)",     # 10
-  "Pre-B Cells",               # 11
-  "Neutrophils",               # 12
-  "Mast Cells"                 # 15
-)
-
-names(new_labels) <- levels(obj)
-obj <- RenameIdents(obj, new_labels)
-
-DimPlot(obj, reduction = "umap", label = TRUE, repel = TRUE) + NoLegend()
-DimPlot(obj, reduction = "pca", repel = TRUE) 
 
 # Runtime Summary
 runtime_summary <- data.frame(
@@ -250,8 +195,7 @@ runtime_summary <- data.frame(
     "Loadings",
     "Neighbors",
     "Clustering",
-    "UMAP",
-    "Marker Detection"
+    "UMAP"
   ),
   Time_sec = c(
     time_load["elapsed"],
@@ -267,8 +211,7 @@ runtime_summary <- data.frame(
     time_loadings["elapsed"],
     time_neighbors["elapsed"],
     time_clusters["elapsed"],
-    time_umap["elapsed"],
-    time_markers["elapsed"]
+    time_umap["elapsed"]
   )
 )
 
