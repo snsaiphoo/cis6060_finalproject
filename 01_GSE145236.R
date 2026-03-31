@@ -110,7 +110,17 @@ print(obj[["pca"]], dims = 1:5, nfeatures = 5)
 
 VizDimLoadings(obj, dims = 1:2, reduction = "pca")
 
-DimPlot(obj, reduction = "pca")
+# Get variance explained
+var_explained <- obj[["pca"]]@stdev^2
+var_percent <- round(100 * var_explained / sum(var_explained), 1)
+
+p <- DimPlot(obj, reduction = "pca")
+
+# Add labels
+p + 
+  xlab(paste0("PC1 (", var_percent[1], "%)")) +
+  ylab(paste0("PC2 (", var_percent[2], "%)"))
+
 
 # PCA Evaluation Metrics
 
@@ -258,3 +268,4 @@ runtime_summary <- data.frame(
 print(runtime_summary)
 
 write.csv(runtime_summary, "seurat_01/runtime_summary_tibialis.csv", row.names = FALSE)
+

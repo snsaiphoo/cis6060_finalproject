@@ -3,7 +3,8 @@
 .RData
 .Ruserdata
 *.h5
-.RDataTmp
+.RDataTmp*
 PCAcomp.Rproj
 *.h5ad
 GS*/
+scanpy_01

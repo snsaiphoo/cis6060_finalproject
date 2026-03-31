@@ -45,7 +45,6 @@ VlnPlot(obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "percent.mt")
 FeatureScatter(obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 
-# QC Filtering
 # QC Filtering:
 # Remove low-quality cells (nFeature_RNA < 1000)
 # Remove potential doublets (nFeature_RNA > 7000, nCount_RNA > 50000)
@@ -113,7 +112,16 @@ print(obj[["pca"]], dims = 1:5, nfeatures = 5)
 
 VizDimLoadings(obj, dims = 1:2, reduction = "pca")
 
-DimPlot(obj, reduction = "pca")
+# Get variance explained
+var_explained <- obj[["pca"]]@stdev^2
+var_percent <- round(100 * var_explained / sum(var_explained), 1)
+
+p <- DimPlot(obj, reduction = "pca")
+
+# Add labels
+p + 
+  xlab(paste0("PC1 (", var_percent[1], "%)")) +
+  ylab(paste0("PC2 (", var_percent[2], "%)"))
 
 # PCA Evaluation Metrics
 
