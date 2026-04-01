@@ -64,6 +64,9 @@ time_norm <- system.time({
   obj <- NormalizeData(obj)
 })
 
+# Remove unwanted genes before HVG selection
+genes_keep <- rownames(obj)[!grepl("^Hb|^Rpl|^Rps", rownames(obj))]
+obj <- obj[genes_keep, ]
 
 # Variable Features
 time_hvg <- system.time({
@@ -73,10 +76,6 @@ time_hvg <- system.time({
     nfeatures = 2000
   )
 })
-
-VariableFeatures(obj) <- VariableFeatures(obj)[
-  !grepl("^Hb|^Rpl|^Rps", VariableFeatures(obj))
-]
 
 length(VariableFeatures(obj))
 
@@ -115,18 +114,30 @@ ElbowPlot(obj, ndims = 10)
 
 print(obj[["pca"]], dims = 1:5, nfeatures = 5)
 
-VizDimLoadings(obj, dims = 1:2, reduction = "pca")
+
+p <- VizDimLoadings(obj, dims = 1, reduction = "pca")
+
+p +
+  ggtitle("PC1 Loadings - Seurat 03") +      
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5)  # center the title
+  )
+
+p <- DimPlot(obj, reduction = "pca")
 
 # Get variance explained
 var_explained <- obj[["pca"]]@stdev^2
 var_percent <- round(100 * var_explained / sum(var_explained), 1)
 
-p <- DimPlot(obj, reduction = "pca")
-
 # Add labels
-p + 
+p +  ggtitle("PC1-PC2 - Seurat 03") +   
   xlab(paste0("PC1 (", var_percent[1], "%)")) +
-  ylab(paste0("PC2 (", var_percent[2], "%)"))
+  ylab(paste0("PC2 (", var_percent[2], "%)")) +
+  theme(
+    plot.title = element_text(hjust = 0.7)  # center the title
+  )
+
 
 # PCA Evaluation Metrics
 

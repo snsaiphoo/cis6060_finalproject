@@ -8,7 +8,6 @@ library(ggplot2)
 # Set seed for reproducibility
 set.seed(42)
 
-
 # Load Data
 time_load <- system.time({
   data <- Read10X("GSM4319249_injured/")
@@ -64,6 +63,10 @@ time_norm <- system.time({
 })
 
 
+# Remove unwanted genes before HVG selection
+genes_keep <- rownames(obj)[!grepl("^Hb|^Rpl|^Rps", rownames(obj))]
+obj <- obj[genes_keep, ]
+
 # Variable Features
 time_hvg <- system.time({
   obj <- FindVariableFeatures(
@@ -72,6 +75,8 @@ time_hvg <- system.time({
     nfeatures = 2000
   )
 })
+
+length(VariableFeatures(obj))
 
 seurat_hvg <- VariableFeatures(obj)
 write.csv(seurat_hvg, "seurat_01/seurat_hvg_01.csv", row.names = FALSE)
@@ -108,7 +113,15 @@ ElbowPlot(obj, ndims = 10)
 
 print(obj[["pca"]], dims = 1:5, nfeatures = 5)
 
-VizDimLoadings(obj, dims = 1:2, reduction = "pca")
+p <- VizDimLoadings(obj, dims = 1, reduction = "pca")
+
+
+p +
+  ggtitle("PC1 Loadings - Seurat 01") +      
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5)  # center the title
+  )
 
 # Get variance explained
 var_explained <- obj[["pca"]]@stdev^2
@@ -117,9 +130,12 @@ var_percent <- round(100 * var_explained / sum(var_explained), 1)
 p <- DimPlot(obj, reduction = "pca")
 
 # Add labels
-p + 
+p +  ggtitle("PC1-PC2 - Seurat 01") +   
   xlab(paste0("PC1 (", var_percent[1], "%)")) +
-  ylab(paste0("PC2 (", var_percent[2], "%)"))
+  ylab(paste0("PC2 (", var_percent[2], "%)")) +
+  theme(
+    plot.title = element_text(hjust = 0.7)  # center the title
+  )
 
 
 # PCA Evaluation Metrics
@@ -212,4 +228,3 @@ runtime_summary <- data.frame(
 print(runtime_summary)
 
 write.csv(runtime_summary, "seurat_01/runtime_summary_tibialis.csv", row.names = FALSE)
-
